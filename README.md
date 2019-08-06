@@ -1,2 +1,2 @@
 # ATtiny85_lib
-Starter Libraries for the ATtiny85
+Starter libraries and example code for the ATtiny85

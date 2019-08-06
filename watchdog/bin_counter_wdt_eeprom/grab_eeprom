@@ -1,0 +1,1 @@
+avrdude -c usbasp -p t85 -U eeprom:r:eedump.hex:i

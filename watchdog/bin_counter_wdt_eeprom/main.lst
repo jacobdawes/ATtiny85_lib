@@ -1,0 +1,681 @@
+   1               		.file	"main.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__tmp_reg__ = 0
+   6               	__zero_reg__ = 1
+   7               		.text
+   8               	.Ltext0:
+   9               		.cfi_sections	.debug_frame
+  10               	.global	eeprom_write
+  12               	eeprom_write:
+  13               	.LFB7:
+  14               		.file 1 "main.c"
+   1:main.c        **** 
+   2:main.c        **** // Watchdog Example
+   3:main.c        **** // 3/6/19
+   4:main.c        **** //
+   5:main.c        **** // In this example, we implement a simple binary counter
+   6:main.c        **** // 
+   7:main.c        **** // If the counter is not incremented after a certain period of time,
+   8:main.c        **** // The watchdog will first trigger an interrupt, saving the counter variable to eeprom
+   9:main.c        **** // and flashing all LEDs high
+  10:main.c        **** //
+  11:main.c        **** // The wdt is then set to reset the system after the next timer triggers
+  12:main.c        **** // The value of the counter is restored, only if the system knows a watchdog reset has occurred
+  13:main.c        **** 
+  14:main.c        **** 
+  15:main.c        **** #include <avr/io.h>
+  16:main.c        **** #include <avr/interrupt.h>
+  17:main.c        **** #include <avr/wdt.h>
+  18:main.c        **** #include <avr/eeprom.h>
+  19:main.c        **** #include <util/delay.h>
+  20:main.c        **** 
+  21:main.c        **** 
+  22:main.c        **** volatile uint8_t count;
+  23:main.c        **** 
+  24:main.c        **** 
+  25:main.c        **** uint8_t read_button(uint8_t pin);
+  26:main.c        **** void wdt_config_res();
+  27:main.c        **** void wdt_config_int();
+  28:main.c        **** void eeprom_write(uint8_t ucAddress, uint8_t ucData);
+  29:main.c        **** uint8_t eeprom_read(uint8_t ucAddress);
+  30:main.c        **** 
+  31:main.c        **** 
+  32:main.c        **** 
+  33:main.c        **** // Interrupt service routine for watchdog timer interrupt
+  34:main.c        **** ISR(WDT_vect){
+  35:main.c        **** 
+  36:main.c        ****     // flash on all LEDs
+  37:main.c        ****     PORTB |= 0b00001111;
+  38:main.c        ****     // value of counter to EEPROM
+  39:main.c        ****     eeprom_write(0x00, count);
+  40:main.c        ****     // turn off watchdog interrupts
+  41:main.c        ****     WDTCR &= ~(1<<WDIE);
+  42:main.c        ****     // enable watchdog timer (for system reset)
+  43:main.c        ****     WDTCR |= (1<<WDE);
+  44:main.c        **** }
+  45:main.c        **** 
+  46:main.c        **** 
+  47:main.c        **** void eeprom_write(unsigned char ucAddress, unsigned char ucData){
+  15               		.loc 1 47 0
+  16               		.cfi_startproc
+  17               	/* prologue: function */
+  18               	/* frame size = 0 */
+  19               	/* stack size = 0 */
+  20               	.L__stack_usage = 0
+  21               	.LVL0:
+  22               	.L3:
+  48:main.c        **** 
+  49:main.c        ****     // wait for completion of previous write
+  50:main.c        ****     while(EECR & (1<<EEPE));
+  23               		.loc 1 50 0 discriminator 1
+  24 0000 E199      		sbic 0x1c,1
+  25 0002 00C0      		rjmp .L3
+  51:main.c        **** 
+  52:main.c        ****     // set programming mode to erase and write (atomic mode)
+  53:main.c        ****     EECR = (0<<EEPM1)|(0<<EEPM0);
+  26               		.loc 1 53 0
+  27 0004 1CBA      		out 0x1c,__zero_reg__
+  54:main.c        ****     // set up address and data registers
+  55:main.c        ****     EEAR = ucAddress;
+  28               		.loc 1 55 0
+  29 0006 90E0      		ldi r25,0
+  30 0008 9FBB      		out 0x1e+1,r25
+  31 000a 8EBB      		out 0x1e,r24
+  56:main.c        ****     EEDR = ucData;
+  32               		.loc 1 56 0
+  33 000c 6DBB      		out 0x1d,r22
+  57:main.c        ****     // write logical 1 to EEMPE
+  58:main.c        ****     EECR |= (1<<EEMPE);
+  34               		.loc 1 58 0
+  35 000e E29A      		sbi 0x1c,2
+  59:main.c        ****     // start eeprom write
+  60:main.c        ****     EECR |= (1<<EEPE);
+  36               		.loc 1 60 0
+  37 0010 E19A      		sbi 0x1c,1
+  38 0012 0895      		ret
+  39               		.cfi_endproc
+  40               	.LFE7:
+  42               	.global	__vector_12
+  44               	__vector_12:
+  45               	.LFB6:
+  34:main.c        **** ISR(WDT_vect){
+  46               		.loc 1 34 0
+  47               		.cfi_startproc
+  48 0014 1F92      		push r1
+  49               	.LCFI0:
+  50               		.cfi_def_cfa_offset 3
+  51               		.cfi_offset 1, -2
+  52 0016 0F92      		push r0
+  53               	.LCFI1:
+  54               		.cfi_def_cfa_offset 4
+  55               		.cfi_offset 0, -3
+  56 0018 0FB6      		in r0,__SREG__
+  57 001a 0F92      		push r0
+  58 001c 1124      		clr __zero_reg__
+  59 001e 2F93      		push r18
+  60               	.LCFI2:
+  61               		.cfi_def_cfa_offset 5
+  62               		.cfi_offset 18, -4
+  63 0020 3F93      		push r19
+  64               	.LCFI3:
+  65               		.cfi_def_cfa_offset 6
+  66               		.cfi_offset 19, -5
+  67 0022 4F93      		push r20
+  68               	.LCFI4:
+  69               		.cfi_def_cfa_offset 7
+  70               		.cfi_offset 20, -6
+  71 0024 5F93      		push r21
+  72               	.LCFI5:
+  73               		.cfi_def_cfa_offset 8
+  74               		.cfi_offset 21, -7
+  75 0026 6F93      		push r22
+  76               	.LCFI6:
+  77               		.cfi_def_cfa_offset 9
+  78               		.cfi_offset 22, -8
+  79 0028 7F93      		push r23
+  80               	.LCFI7:
+  81               		.cfi_def_cfa_offset 10
+  82               		.cfi_offset 23, -9
+  83 002a 8F93      		push r24
+  84               	.LCFI8:
+  85               		.cfi_def_cfa_offset 11
+  86               		.cfi_offset 24, -10
+  87 002c 9F93      		push r25
+  88               	.LCFI9:
+  89               		.cfi_def_cfa_offset 12
+  90               		.cfi_offset 25, -11
+  91 002e AF93      		push r26
+  92               	.LCFI10:
+  93               		.cfi_def_cfa_offset 13
+  94               		.cfi_offset 26, -12
+  95 0030 BF93      		push r27
+  96               	.LCFI11:
+  97               		.cfi_def_cfa_offset 14
+  98               		.cfi_offset 27, -13
+  99 0032 EF93      		push r30
+ 100               	.LCFI12:
+ 101               		.cfi_def_cfa_offset 15
+ 102               		.cfi_offset 30, -14
+ 103 0034 FF93      		push r31
+ 104               	.LCFI13:
+ 105               		.cfi_def_cfa_offset 16
+ 106               		.cfi_offset 31, -15
+ 107               	/* prologue: Signal */
+ 108               	/* frame size = 0 */
+ 109               	/* stack size = 15 */
+ 110               	.L__stack_usage = 15
+  37:main.c        ****     PORTB |= 0b00001111;
+ 111               		.loc 1 37 0
+ 112 0036 88B3      		in r24,0x18
+ 113 0038 8F60      		ori r24,lo8(15)
+ 114 003a 88BB      		out 0x18,r24
+  39:main.c        ****     eeprom_write(0x00, count);
+ 115               		.loc 1 39 0
+ 116 003c 6091 0000 		lds r22,count
+ 117 0040 80E0      		ldi r24,0
+ 118 0042 00D0      		rcall eeprom_write
+ 119               	.LVL1:
+  41:main.c        ****     WDTCR &= ~(1<<WDIE);
+ 120               		.loc 1 41 0
+ 121 0044 81B5      		in r24,0x21
+ 122 0046 8F7B      		andi r24,lo8(-65)
+ 123 0048 81BD      		out 0x21,r24
+  43:main.c        ****     WDTCR |= (1<<WDE);
+ 124               		.loc 1 43 0
+ 125 004a 81B5      		in r24,0x21
+ 126 004c 8860      		ori r24,lo8(8)
+ 127 004e 81BD      		out 0x21,r24
+ 128               	/* epilogue start */
+  44:main.c        **** }
+ 129               		.loc 1 44 0
+ 130 0050 FF91      		pop r31
+ 131 0052 EF91      		pop r30
+ 132 0054 BF91      		pop r27
+ 133 0056 AF91      		pop r26
+ 134 0058 9F91      		pop r25
+ 135 005a 8F91      		pop r24
+ 136 005c 7F91      		pop r23
+ 137 005e 6F91      		pop r22
+ 138 0060 5F91      		pop r21
+ 139 0062 4F91      		pop r20
+ 140 0064 3F91      		pop r19
+ 141 0066 2F91      		pop r18
+ 142 0068 0F90      		pop r0
+ 143 006a 0FBE      		out __SREG__,r0
+ 144 006c 0F90      		pop r0
+ 145 006e 1F90      		pop r1
+ 146 0070 1895      		reti
+ 147               		.cfi_endproc
+ 148               	.LFE6:
+ 150               	.global	eeprom_read
+ 152               	eeprom_read:
+ 153               	.LFB8:
+  61:main.c        **** }
+  62:main.c        **** 
+  63:main.c        **** 
+  64:main.c        **** unsigned char eeprom_read(unsigned char ucAddress){
+ 154               		.loc 1 64 0
+ 155               		.cfi_startproc
+ 156               	/* prologue: function */
+ 157               	/* frame size = 0 */
+ 158               	/* stack size = 0 */
+ 159               	.L__stack_usage = 0
+ 160               	.LVL2:
+ 161               	.L8:
+  65:main.c        **** 
+  66:main.c        ****     // wait for completion of previous write
+  67:main.c        ****     while(EECR & (1<<EEPE));
+ 162               		.loc 1 67 0 discriminator 1
+ 163 0072 E199      		sbic 0x1c,1
+ 164 0074 00C0      		rjmp .L8
+  68:main.c        **** 
+  69:main.c        ****     // set up address register
+  70:main.c        ****     EEAR = ucAddress;
+ 165               		.loc 1 70 0
+ 166 0076 90E0      		ldi r25,0
+ 167 0078 9FBB      		out 0x1e+1,r25
+ 168 007a 8EBB      		out 0x1e,r24
+  71:main.c        ****     // start eeprom read
+  72:main.c        ****     EECR |= (1<<EERE);
+ 169               		.loc 1 72 0
+ 170 007c E09A      		sbi 0x1c,0
+  73:main.c        **** 
+  74:main.c        ****     // return data
+  75:main.c        ****     return EEDR;
+ 171               		.loc 1 75 0
+ 172 007e 8DB3      		in r24,0x1d
+ 173               	.LVL3:
+  76:main.c        **** }
+ 174               		.loc 1 76 0
+ 175 0080 0895      		ret
+ 176               		.cfi_endproc
+ 177               	.LFE8:
+ 179               	.global	read_button
+ 181               	read_button:
+ 182               	.LFB9:
+  77:main.c        **** 
+  78:main.c        **** 
+  79:main.c        **** 
+  80:main.c        **** // Read pin value and output true/false result
+  81:main.c        **** uint8_t read_button(uint8_t pin){
+ 183               		.loc 1 81 0
+ 184               		.cfi_startproc
+ 185               	.LVL4:
+ 186               	/* prologue: function */
+ 187               	/* frame size = 0 */
+ 188               	/* stack size = 0 */
+ 189               	.L__stack_usage = 0
+  82:main.c        **** 
+  83:main.c        ****     if(PINB&(1<<pin))
+ 190               		.loc 1 83 0
+ 191 0082 26B3      		in r18,0x16
+ 192 0084 30E0      		ldi r19,0
+ 193 0086 00C0      		rjmp 2f
+ 194               		1:
+ 195 0088 3595      		asr r19
+ 196 008a 2795      		ror r18
+ 197               		2:
+ 198 008c 8A95      		dec r24
+ 199 008e 02F4      		brpl 1b
+  84:main.c        ****         return 1;
+  85:main.c        ****     else
+  86:main.c        ****         return 0;
+  87:main.c        **** }
+ 200               		.loc 1 87 0
+ 201 0090 822F      		mov r24,r18
+ 202               	.LVL5:
+ 203 0092 8170      		andi r24,lo8(1)
+ 204 0094 0895      		ret
+ 205               		.cfi_endproc
+ 206               	.LFE9:
+ 208               	.global	wdt_config_res
+ 210               	wdt_config_res:
+ 211               	.LFB10:
+  88:main.c        **** 
+  89:main.c        **** 
+  90:main.c        **** 
+  91:main.c        **** // Configure watchdog in interrupt mode
+  92:main.c        **** void wdt_config_res(){
+ 212               		.loc 1 92 0
+ 213               		.cfi_startproc
+ 214               	/* prologue: function */
+ 215               	/* frame size = 0 */
+ 216               	/* stack size = 0 */
+ 217               	.L__stack_usage = 0
+  93:main.c        **** 
+  94:main.c        ****     // Set watchdog change enable bit before configuring prescaler bits
+  95:main.c        ****     WDTCR |= (1<<WDCE);
+ 218               		.loc 1 95 0
+ 219 0096 81B5      		in r24,0x21
+ 220 0098 8061      		ori r24,lo8(16)
+ 221 009a 81BD      		out 0x21,r24
+  96:main.c        ****     // Configure prescaler for a 4 second timeout
+  97:main.c        ****     WDTCR |= (1<<WDP3);
+ 222               		.loc 1 97 0
+ 223 009c 81B5      		in r24,0x21
+ 224 009e 8062      		ori r24,lo8(32)
+ 225 00a0 81BD      		out 0x21,r24
+  98:main.c        ****     // Set watchdog enable high
+  99:main.c        ****     WDTCR |= (1<<WDE);
+ 226               		.loc 1 99 0
+ 227 00a2 81B5      		in r24,0x21
+ 228 00a4 8860      		ori r24,lo8(8)
+ 229 00a6 81BD      		out 0x21,r24
+ 230 00a8 0895      		ret
+ 231               		.cfi_endproc
+ 232               	.LFE10:
+ 234               	.global	wdt_config_int
+ 236               	wdt_config_int:
+ 237               	.LFB11:
+ 100:main.c        **** 
+ 101:main.c        ****     // Note: the line below does the same thing but hides complexity
+ 102:main.c        ****     // wdt_enable(WDTO_4S);
+ 103:main.c        **** }
+ 104:main.c        **** 
+ 105:main.c        **** 
+ 106:main.c        **** 
+ 107:main.c        **** // Configure watchdog in interrupt mode
+ 108:main.c        **** void wdt_config_int(){
+ 238               		.loc 1 108 0
+ 239               		.cfi_startproc
+ 240               	/* prologue: function */
+ 241               	/* frame size = 0 */
+ 242               	/* stack size = 0 */
+ 243               	.L__stack_usage = 0
+ 109:main.c        **** 
+ 110:main.c        ****     // Enable watchdog interrupts
+ 111:main.c        ****     WDTCR |= (1<<WDIE);
+ 244               		.loc 1 111 0
+ 245 00aa 81B5      		in r24,0x21
+ 246 00ac 8064      		ori r24,lo8(64)
+ 247 00ae 81BD      		out 0x21,r24
+ 112:main.c        ****     // Set watchdog change enable bit before configuring prescaler bits
+ 113:main.c        ****     WDTCR |= (1<<WDCE);
+ 248               		.loc 1 113 0
+ 249 00b0 81B5      		in r24,0x21
+ 250 00b2 8061      		ori r24,lo8(16)
+ 251 00b4 81BD      		out 0x21,r24
+ 114:main.c        ****     // Configure prescaler for a 4 second timeout
+ 115:main.c        ****     WDTCR |= (1<<WDP3);
+ 252               		.loc 1 115 0
+ 253 00b6 81B5      		in r24,0x21
+ 254 00b8 8062      		ori r24,lo8(32)
+ 255 00ba 81BD      		out 0x21,r24
+ 256 00bc 0895      		ret
+ 257               		.cfi_endproc
+ 258               	.LFE11:
+ 260               		.section	.text.startup,"ax",@progbits
+ 261               	.global	main
+ 263               	main:
+ 264               	.LFB12:
+ 116:main.c        **** }
+ 117:main.c        **** 
+ 118:main.c        **** 
+ 119:main.c        **** int main(){
+ 265               		.loc 1 119 0
+ 266               		.cfi_startproc
+ 267               	/* prologue: function */
+ 268               	/* frame size = 0 */
+ 269               	/* stack size = 0 */
+ 270               	.L__stack_usage = 0
+ 120:main.c        **** 
+ 121:main.c        ****     // global counter variable
+ 122:main.c        ****     count = 0b00000000;
+ 271               		.loc 1 122 0
+ 272 0000 1092 0000 		sts count,__zero_reg__
+ 123:main.c        **** 
+ 124:main.c        ****     // Initialize PB0-PB3 as output pins
+ 125:main.c        ****     DDRB = (1<<PB0)|(1<<PB1)|(1<<PB2)|(1<<PB3);
+ 273               		.loc 1 125 0
+ 274 0004 8FE0      		ldi r24,lo8(15)
+ 275 0006 87BB      		out 0x17,r24
+ 126:main.c        ****     // Initialize PB4 as an input pin (button)
+ 127:main.c        ****     DDRB &= ~(1<<PB4);
+ 276               		.loc 1 127 0
+ 277 0008 BC98      		cbi 0x17,4
+ 128:main.c        ****     PORTB = 0;
+ 278               		.loc 1 128 0
+ 279 000a 18BA      		out 0x18,__zero_reg__
+ 129:main.c        **** 
+ 130:main.c        ****     // configure watchdog depending on whether or not we have already had a reset
+ 131:main.c        ****     sei();
+ 280               		.loc 1 131 0
+ 281               	/* #APP */
+ 282               	 ;  131 "main.c" 1
+ 283 000c 7894      		sei
+ 284               	 ;  0 "" 2
+ 132:main.c        ****     if(MCUSR&(1<<WDRF)){
+ 285               		.loc 1 132 0
+ 286               	/* #NOAPP */
+ 287 000e 04B6      		in __tmp_reg__,0x34
+ 288 0010 03FE      		sbrs __tmp_reg__,3
+ 289 0012 00C0      		rjmp .L13
+ 133:main.c        ****         // if watchdog reset has occurred, get value of count from EEPROM
+ 134:main.c        ****         count = eeprom_read(0x00);
+ 290               		.loc 1 134 0
+ 291 0014 80E0      		ldi r24,0
+ 292 0016 00D0      		rcall eeprom_read
+ 293               	.LVL6:
+ 294 0018 8093 0000 		sts count,r24
+ 295               	.L13:
+ 135:main.c        ****     }
+ 136:main.c        ****     wdt_config_int();
+ 296               		.loc 1 136 0
+ 297 001c 00D0      		rcall wdt_config_int
+ 298               	.LVL7:
+ 299               	.L15:
+ 137:main.c        **** 
+ 138:main.c        **** 
+ 139:main.c        ****     while(1){
+ 140:main.c        ****     
+ 141:main.c        ****     
+ 142:main.c        ****         // wait for a button press, 50 ms delay to act as simple debounce
+ 143:main.c        ****         while(read_button(PB4));
+ 300               		.loc 1 143 0 discriminator 1
+ 301 001e 84E0      		ldi r24,lo8(4)
+ 302 0020 00D0      		rcall read_button
+ 303               	.LVL8:
+ 304 0022 8111      		cpse r24,__zero_reg__
+ 305 0024 00C0      		rjmp .L15
+ 144:main.c        ****         // reset the watchdog timer
+ 145:main.c        ****         wdt_reset();
+ 306               		.loc 1 145 0
+ 307               	/* #APP */
+ 308               	 ;  145 "main.c" 1
+ 309 0026 A895      		wdr
+ 310               	 ;  0 "" 2
+ 311               	.LVL9:
+ 312               	/* #NOAPP */
+ 313               	.LBB4:
+ 314               	.LBB5:
+ 315               		.file 2 "/usr/lib/avr/include/util/delay.h"
+   1:/usr/lib/avr/include/util/delay.h **** /* Copyright (c) 2002, Marek Michalkiewicz
+   2:/usr/lib/avr/include/util/delay.h ****    Copyright (c) 2004,2005,2007 Joerg Wunsch
+   3:/usr/lib/avr/include/util/delay.h ****    Copyright (c) 2007  Florin-Viorel Petrov
+   4:/usr/lib/avr/include/util/delay.h ****    All rights reserved.
+   5:/usr/lib/avr/include/util/delay.h **** 
+   6:/usr/lib/avr/include/util/delay.h ****    Redistribution and use in source and binary forms, with or without
+   7:/usr/lib/avr/include/util/delay.h ****    modification, are permitted provided that the following conditions are met:
+   8:/usr/lib/avr/include/util/delay.h **** 
+   9:/usr/lib/avr/include/util/delay.h ****    * Redistributions of source code must retain the above copyright
+  10:/usr/lib/avr/include/util/delay.h ****      notice, this list of conditions and the following disclaimer.
+  11:/usr/lib/avr/include/util/delay.h **** 
+  12:/usr/lib/avr/include/util/delay.h ****    * Redistributions in binary form must reproduce the above copyright
+  13:/usr/lib/avr/include/util/delay.h ****      notice, this list of conditions and the following disclaimer in
+  14:/usr/lib/avr/include/util/delay.h ****      the documentation and/or other materials provided with the
+  15:/usr/lib/avr/include/util/delay.h ****      distribution.
+  16:/usr/lib/avr/include/util/delay.h **** 
+  17:/usr/lib/avr/include/util/delay.h ****    * Neither the name of the copyright holders nor the names of
+  18:/usr/lib/avr/include/util/delay.h ****      contributors may be used to endorse or promote products derived
+  19:/usr/lib/avr/include/util/delay.h ****      from this software without specific prior written permission.
+  20:/usr/lib/avr/include/util/delay.h **** 
+  21:/usr/lib/avr/include/util/delay.h ****   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+  22:/usr/lib/avr/include/util/delay.h ****   AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  23:/usr/lib/avr/include/util/delay.h ****   IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  24:/usr/lib/avr/include/util/delay.h ****   ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  25:/usr/lib/avr/include/util/delay.h ****   LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  26:/usr/lib/avr/include/util/delay.h ****   CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  27:/usr/lib/avr/include/util/delay.h ****   SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  28:/usr/lib/avr/include/util/delay.h ****   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  29:/usr/lib/avr/include/util/delay.h ****   CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+  30:/usr/lib/avr/include/util/delay.h ****   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+  31:/usr/lib/avr/include/util/delay.h ****   POSSIBILITY OF SUCH DAMAGE. */
+  32:/usr/lib/avr/include/util/delay.h **** 
+  33:/usr/lib/avr/include/util/delay.h **** /* $Id: delay.h.in 2251 2011-09-14 08:20:33Z joerg_wunsch $ */
+  34:/usr/lib/avr/include/util/delay.h **** 
+  35:/usr/lib/avr/include/util/delay.h **** #ifndef _UTIL_DELAY_H_
+  36:/usr/lib/avr/include/util/delay.h **** #define _UTIL_DELAY_H_ 1
+  37:/usr/lib/avr/include/util/delay.h **** 
+  38:/usr/lib/avr/include/util/delay.h **** #ifndef __HAS_DELAY_CYCLES
+  39:/usr/lib/avr/include/util/delay.h **** #define __HAS_DELAY_CYCLES 1
+  40:/usr/lib/avr/include/util/delay.h **** #endif
+  41:/usr/lib/avr/include/util/delay.h **** 
+  42:/usr/lib/avr/include/util/delay.h **** #include <inttypes.h>
+  43:/usr/lib/avr/include/util/delay.h **** #include <util/delay_basic.h>
+  44:/usr/lib/avr/include/util/delay.h **** #include <math.h>
+  45:/usr/lib/avr/include/util/delay.h **** 
+  46:/usr/lib/avr/include/util/delay.h **** /** \file */
+  47:/usr/lib/avr/include/util/delay.h **** /** \defgroup util_delay <util/delay.h>: Convenience functions for busy-wait delay loops
+  48:/usr/lib/avr/include/util/delay.h ****     \code
+  49:/usr/lib/avr/include/util/delay.h ****     #define F_CPU 1000000UL  // 1 MHz
+  50:/usr/lib/avr/include/util/delay.h ****     //#define F_CPU 14.7456E6
+  51:/usr/lib/avr/include/util/delay.h ****     #include <util/delay.h>
+  52:/usr/lib/avr/include/util/delay.h ****     \endcode
+  53:/usr/lib/avr/include/util/delay.h **** 
+  54:/usr/lib/avr/include/util/delay.h ****     \note As an alternative method, it is possible to pass the
+  55:/usr/lib/avr/include/util/delay.h ****     F_CPU macro down to the compiler from the Makefile.
+  56:/usr/lib/avr/include/util/delay.h ****     Obviously, in that case, no \c \#define statement should be
+  57:/usr/lib/avr/include/util/delay.h ****     used.
+  58:/usr/lib/avr/include/util/delay.h **** 
+  59:/usr/lib/avr/include/util/delay.h ****     The functions in this header file are wrappers around the basic
+  60:/usr/lib/avr/include/util/delay.h ****     busy-wait functions from <util/delay_basic.h>.  They are meant as
+  61:/usr/lib/avr/include/util/delay.h ****     convenience functions where actual time values can be specified
+  62:/usr/lib/avr/include/util/delay.h ****     rather than a number of cycles to wait for.  The idea behind is
+  63:/usr/lib/avr/include/util/delay.h ****     that compile-time constant expressions will be eliminated by
+  64:/usr/lib/avr/include/util/delay.h ****     compiler optimization so floating-point expressions can be used
+  65:/usr/lib/avr/include/util/delay.h ****     to calculate the number of delay cycles needed based on the CPU
+  66:/usr/lib/avr/include/util/delay.h ****     frequency passed by the macro F_CPU.
+  67:/usr/lib/avr/include/util/delay.h **** 
+  68:/usr/lib/avr/include/util/delay.h ****     \note In order for these functions to work as intended, compiler
+  69:/usr/lib/avr/include/util/delay.h ****     optimizations <em>must</em> be enabled, and the delay time
+  70:/usr/lib/avr/include/util/delay.h ****     <em>must</em> be an expression that is a known constant at
+  71:/usr/lib/avr/include/util/delay.h ****     compile-time.  If these requirements are not met, the resulting
+  72:/usr/lib/avr/include/util/delay.h ****     delay will be much longer (and basically unpredictable), and
+  73:/usr/lib/avr/include/util/delay.h ****     applications that otherwise do not use floating-point calculations
+  74:/usr/lib/avr/include/util/delay.h ****     will experience severe code bloat by the floating-point library
+  75:/usr/lib/avr/include/util/delay.h ****     routines linked into the application.
+  76:/usr/lib/avr/include/util/delay.h **** 
+  77:/usr/lib/avr/include/util/delay.h ****     The functions available allow the specification of microsecond, and
+  78:/usr/lib/avr/include/util/delay.h ****     millisecond delays directly, using the application-supplied macro
+  79:/usr/lib/avr/include/util/delay.h ****     F_CPU as the CPU clock frequency (in Hertz).
+  80:/usr/lib/avr/include/util/delay.h **** 
+  81:/usr/lib/avr/include/util/delay.h **** */
+  82:/usr/lib/avr/include/util/delay.h **** 
+  83:/usr/lib/avr/include/util/delay.h **** #if !defined(__DOXYGEN__)
+  84:/usr/lib/avr/include/util/delay.h **** static inline void _delay_us(double __us) __attribute__((always_inline));
+  85:/usr/lib/avr/include/util/delay.h **** static inline void _delay_ms(double __ms) __attribute__((always_inline));
+  86:/usr/lib/avr/include/util/delay.h **** #endif
+  87:/usr/lib/avr/include/util/delay.h **** 
+  88:/usr/lib/avr/include/util/delay.h **** #ifndef F_CPU
+  89:/usr/lib/avr/include/util/delay.h **** /* prevent compiler error by supplying a default */
+  90:/usr/lib/avr/include/util/delay.h **** # warning "F_CPU not defined for <util/delay.h>"
+  91:/usr/lib/avr/include/util/delay.h **** # define F_CPU 1000000UL
+  92:/usr/lib/avr/include/util/delay.h **** #endif
+  93:/usr/lib/avr/include/util/delay.h **** 
+  94:/usr/lib/avr/include/util/delay.h **** #ifndef __OPTIMIZE__
+  95:/usr/lib/avr/include/util/delay.h **** # warning "Compiler optimizations disabled; functions from <util/delay.h> won't work as designed"
+  96:/usr/lib/avr/include/util/delay.h **** #endif
+  97:/usr/lib/avr/include/util/delay.h **** 
+  98:/usr/lib/avr/include/util/delay.h **** #if __HAS_DELAY_CYCLES && defined(__OPTIMIZE__) && \
+  99:/usr/lib/avr/include/util/delay.h ****   !defined(__DELAY_BACKWARD_COMPATIBLE__) &&	   \
+ 100:/usr/lib/avr/include/util/delay.h ****   __STDC_HOSTED__
+ 101:/usr/lib/avr/include/util/delay.h **** #  include <math.h>
+ 102:/usr/lib/avr/include/util/delay.h **** #endif
+ 103:/usr/lib/avr/include/util/delay.h **** 
+ 104:/usr/lib/avr/include/util/delay.h **** /**
+ 105:/usr/lib/avr/include/util/delay.h ****    \ingroup util_delay
+ 106:/usr/lib/avr/include/util/delay.h **** 
+ 107:/usr/lib/avr/include/util/delay.h ****    Perform a delay of \c __ms milliseconds, using _delay_loop_2().
+ 108:/usr/lib/avr/include/util/delay.h **** 
+ 109:/usr/lib/avr/include/util/delay.h ****    The macro F_CPU is supposed to be defined to a
+ 110:/usr/lib/avr/include/util/delay.h ****    constant defining the CPU clock frequency (in Hertz).
+ 111:/usr/lib/avr/include/util/delay.h **** 
+ 112:/usr/lib/avr/include/util/delay.h ****    The maximal possible delay is 262.14 ms / F_CPU in MHz.
+ 113:/usr/lib/avr/include/util/delay.h **** 
+ 114:/usr/lib/avr/include/util/delay.h ****    When the user request delay which exceed the maximum possible one,
+ 115:/usr/lib/avr/include/util/delay.h ****    _delay_ms() provides a decreased resolution functionality. In this
+ 116:/usr/lib/avr/include/util/delay.h ****    mode _delay_ms() will work with a resolution of 1/10 ms, providing
+ 117:/usr/lib/avr/include/util/delay.h ****    delays up to 6.5535 seconds (independent from CPU frequency).  The
+ 118:/usr/lib/avr/include/util/delay.h ****    user will not be informed about decreased resolution.
+ 119:/usr/lib/avr/include/util/delay.h **** 
+ 120:/usr/lib/avr/include/util/delay.h ****    If the avr-gcc toolchain has __builtin_avr_delay_cycles(unsigned long)
+ 121:/usr/lib/avr/include/util/delay.h ****    support, maximal possible delay is 4294967.295 ms/ F_CPU in MHz. For
+ 122:/usr/lib/avr/include/util/delay.h ****    values greater than the maximal possible delay, overflows results in
+ 123:/usr/lib/avr/include/util/delay.h ****    no delay i.e., 0ms.
+ 124:/usr/lib/avr/include/util/delay.h **** 
+ 125:/usr/lib/avr/include/util/delay.h ****    Conversion of __us into clock cycles may not always result in integer.
+ 126:/usr/lib/avr/include/util/delay.h ****    By default, the clock cycles rounded up to next integer. This ensures that
+ 127:/usr/lib/avr/include/util/delay.h ****    the user gets atleast __us microseconds of delay.
+ 128:/usr/lib/avr/include/util/delay.h **** 
+ 129:/usr/lib/avr/include/util/delay.h ****    Alternatively, user can define __DELAY_ROUND_DOWN__ and __DELAY_ROUND_CLOSEST__
+ 130:/usr/lib/avr/include/util/delay.h ****    to round down and round to closest integer.
+ 131:/usr/lib/avr/include/util/delay.h **** 
+ 132:/usr/lib/avr/include/util/delay.h ****    Note: The new implementation of _delay_ms(double __ms) with 
+ 133:/usr/lib/avr/include/util/delay.h ****     __builtin_avr_delay_cycles(unsigned long) support is not backward compatible. 
+ 134:/usr/lib/avr/include/util/delay.h ****    User can define __DELAY_BACKWARD_COMPATIBLE__ to get a backward compatible delay.
+ 135:/usr/lib/avr/include/util/delay.h ****    Also, the backward compatible
+ 136:/usr/lib/avr/include/util/delay.h ****    algorithm will be chosen if the code is compiled in a <em>freestanding
+ 137:/usr/lib/avr/include/util/delay.h ****    environment</em> (GCC option \c -ffreestanding), as the math functions
+ 138:/usr/lib/avr/include/util/delay.h ****    required for rounding are not available to the compiler then.
+ 139:/usr/lib/avr/include/util/delay.h **** 
+ 140:/usr/lib/avr/include/util/delay.h ****  */
+ 141:/usr/lib/avr/include/util/delay.h **** void
+ 142:/usr/lib/avr/include/util/delay.h **** _delay_ms(double __ms)
+ 143:/usr/lib/avr/include/util/delay.h **** {
+ 144:/usr/lib/avr/include/util/delay.h **** 	uint16_t __ticks;
+ 145:/usr/lib/avr/include/util/delay.h **** 	double __tmp ; 
+ 146:/usr/lib/avr/include/util/delay.h **** #if __HAS_DELAY_CYCLES && defined(__OPTIMIZE__) && \
+ 147:/usr/lib/avr/include/util/delay.h ****   !defined(__DELAY_BACKWARD_COMPATIBLE__) &&	   \
+ 148:/usr/lib/avr/include/util/delay.h ****   __STDC_HOSTED__
+ 149:/usr/lib/avr/include/util/delay.h **** 	uint32_t __ticks_dc;
+ 150:/usr/lib/avr/include/util/delay.h **** 	extern void __builtin_avr_delay_cycles(unsigned long);
+ 151:/usr/lib/avr/include/util/delay.h **** 	__tmp = ((F_CPU) / 1e3) * __ms;
+ 152:/usr/lib/avr/include/util/delay.h **** 
+ 153:/usr/lib/avr/include/util/delay.h **** 	#if defined(__DELAY_ROUND_DOWN__)
+ 154:/usr/lib/avr/include/util/delay.h **** 		__ticks_dc = (uint32_t)fabs(__tmp);
+ 155:/usr/lib/avr/include/util/delay.h **** 
+ 156:/usr/lib/avr/include/util/delay.h **** 	#elif defined(__DELAY_ROUND_CLOSEST__)
+ 157:/usr/lib/avr/include/util/delay.h **** 		__ticks_dc = (uint32_t)(fabs(__tmp)+0.5);
+ 158:/usr/lib/avr/include/util/delay.h **** 
+ 159:/usr/lib/avr/include/util/delay.h **** 	#else
+ 160:/usr/lib/avr/include/util/delay.h **** 		//round up by default
+ 161:/usr/lib/avr/include/util/delay.h **** 		__ticks_dc = (uint32_t)(ceil(fabs(__tmp)));
+ 162:/usr/lib/avr/include/util/delay.h **** 	#endif
+ 163:/usr/lib/avr/include/util/delay.h **** 
+ 164:/usr/lib/avr/include/util/delay.h **** 	__builtin_avr_delay_cycles(__ticks_dc);
+ 316               		.loc 2 164 0
+ 317 0028 2FE7      		ldi r18,lo8(79999)
+ 318 002a 88E3      		ldi r24,hi8(79999)
+ 319 002c 91E0      		ldi r25,hlo8(79999)
+ 320 002e 2150      		1: subi r18,1
+ 321 0030 8040      		sbci r24,0
+ 322 0032 9040      		sbci r25,0
+ 323 0034 01F4      		brne 1b
+ 324 0036 00C0      		rjmp .
+ 325 0038 0000      		nop
+ 326               	.LBE5:
+ 327               	.LBE4:
+ 146:main.c        ****         _delay_ms(50);
+ 147:main.c        ****         // once the button press occurs, increment counter
+ 148:main.c        ****         if(count<16)
+ 328               		.loc 1 148 0
+ 329 003a 8091 0000 		lds r24,count
+ 330 003e 8031      		cpi r24,lo8(16)
+ 331 0040 00F4      		brsh .L16
+ 149:main.c        ****             count++;
+ 332               		.loc 1 149 0
+ 333 0042 8091 0000 		lds r24,count
+ 334 0046 8F5F      		subi r24,lo8(-(1))
+ 335 0048 8093 0000 		sts count,r24
+ 336 004c 00C0      		rjmp .L17
+ 337               	.L16:
+ 150:main.c        ****         else
+ 151:main.c        ****             count = 0;
+ 338               		.loc 1 151 0
+ 339 004e 1092 0000 		sts count,__zero_reg__
+ 340               	.L17:
+ 152:main.c        **** 
+ 153:main.c        ****         // display count on output register
+ 154:main.c        ****         PORTB = count;
+ 341               		.loc 1 154 0
+ 342 0052 8091 0000 		lds r24,count
+ 343 0056 88BB      		out 0x18,r24
+ 155:main.c        ****     }
+ 344               		.loc 1 155 0
+ 345 0058 00C0      		rjmp .L15
+ 346               		.cfi_endproc
+ 347               	.LFE12:
+ 349               		.comm	count,1,1
+ 350               		.text
+ 351               	.Letext0:
+ 352               		.file 3 "/usr/lib/avr/include/stdint.h"
+DEFINED SYMBOLS
+                            *ABS*:00000000 main.c
+     /tmp/ccy2Wt6B.s:2      *ABS*:0000003e __SP_H__
+     /tmp/ccy2Wt6B.s:3      *ABS*:0000003d __SP_L__
+     /tmp/ccy2Wt6B.s:4      *ABS*:0000003f __SREG__
+     /tmp/ccy2Wt6B.s:5      *ABS*:00000000 __tmp_reg__
+     /tmp/ccy2Wt6B.s:6      *ABS*:00000001 __zero_reg__
+     /tmp/ccy2Wt6B.s:12     .text:00000000 eeprom_write
+     /tmp/ccy2Wt6B.s:44     .text:00000014 __vector_12
+                            *COM*:00000001 count
+     /tmp/ccy2Wt6B.s:152    .text:00000072 eeprom_read
+     /tmp/ccy2Wt6B.s:181    .text:00000082 read_button
+     /tmp/ccy2Wt6B.s:210    .text:00000096 wdt_config_res
+     /tmp/ccy2Wt6B.s:236    .text:000000aa wdt_config_int
+     /tmp/ccy2Wt6B.s:263    .text.startup:00000000 main
+
+UNDEFINED SYMBOLS
+__do_clear_bss

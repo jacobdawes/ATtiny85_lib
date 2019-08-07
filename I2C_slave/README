@@ -1,0 +1,2 @@
+I2c slave library and example code. The library was borrowed and slightly
+modified from https://github.com/JDat/AtTiny-I2C-master-slave-USI/

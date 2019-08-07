@@ -1,0 +1,3 @@
+Example of using AVR sleep function. This shuts off many of the clocks, saving
+a lot of power. In this example, an external interrupt is used to toggle
+sleep.

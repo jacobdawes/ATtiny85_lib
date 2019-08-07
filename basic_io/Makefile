@@ -64,7 +64,7 @@ OBJDIR = .
 
 
 # List C source files here. (C dependencies are automatically generated.)
-SRC = $(TARGET).c usi_i2c_slave.c adc.c
+SRC = $(TARGET).c
 
 
 # List C++ source files here. (C dependencies are automatically generated.)
